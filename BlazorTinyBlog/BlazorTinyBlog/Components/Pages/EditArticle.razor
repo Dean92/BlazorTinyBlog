@@ -1,0 +1,140 @@
+﻿@page "/edit-article"
+@page "/edit-article/{Id:int}"
+@inject DataContext Context
+@inject NavigationManager NavigationManager
+@attribute [StreamRendering]
+
+@if (Id is null)
+{
+    <PageTitle>Create a new Title</PageTitle>
+    <h3>Create a new Article</h3>
+}
+else if (post is not null)
+{
+    <PageTitle>Edit @post.Title</PageTitle>
+    <h3>Edit "@post.Title"</h3>
+}
+
+@if (post is not null)
+{
+    <EditForm Enhance Model="post" OnSubmit="HandleSubmit" FormName="ArticleForm">
+        <div>
+            <label for="title">Title</label>
+            <InputText id="title" @bind-Value="post.Title" class="form-control" />
+        </div>
+        <div class="mt-2">
+            <label for="publishedDate">Published Date</label>
+            <InputDate id="publishedDate" @bind-Value="post.PublishedDate" class="form-control" />
+        </div>
+        <div class="mt-2">
+            <label for="content">Content</label>
+            <InputTextArea id="content" @bind-Value="post.Content" class="form-control" />
+        </div>
+        <div class="mt-2 mb-2">
+            <InputCheckbox id="isPublished" @bind-Value="post.IsPublished" class="form-check-input" />
+            <label for="isPublished">Published</label>
+        </div>
+        <button class="btn btn-primary mt-2" type="submit">Save</button>
+    </EditForm>
+}
+
+
+<p>@status</p>
+
+<form @onsubmit="DeleteArticle" @formname="DeleteArticleForm" method="post">
+    <button class="btn btn-danger">Delete</button>
+    <AntiforgeryToken />
+</form>
+
+<a href="/blog">Back to Blog</a>
+
+@code {
+    [Parameter]
+    public int? Id { get; set; }
+
+    [SupplyParameterFromForm]
+    BlogPost? post { get; set; }
+
+    string status = string.Empty;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Id is not null)
+        {
+
+            var result = await Context.BlogPosts.FindAsync(Id);
+            if (result is not null)
+            {
+                post ??= result;
+            }
+        }
+        else 
+        {
+            post ??= new();
+        }
+    }
+
+    async Task HandleSubmit()
+    {
+        if (Id is not null)
+        {
+            await UpdateArticle();
+        }
+        else
+        {
+            await CreateArticle();
+        }
+    }
+
+    async Task CreateArticle()
+    {
+        if (post is null)
+            return;
+        Context.BlogPosts.Add(post);
+        var result = await Context.SaveChangesAsync();
+        if (result == 1)
+        {
+            status = "Article created successfully";
+        }
+        else
+        {
+            status = "Article was not created.";
+        }
+    }
+
+    async Task UpdateArticle()
+    {
+        var dbArticle = await Context.BlogPosts.FindAsync(Id);
+        if (dbArticle is not null && post is not null)
+        {
+            dbArticle.Title = post.Title;
+            dbArticle.PublishedDate = post.PublishedDate;
+            dbArticle.Content = post.Content;
+            dbArticle.IsPublished = post.IsPublished;
+
+            var result = await Context.SaveChangesAsync();
+            if(result == 1)
+            {
+                status = "Article updated successfully";
+            }
+            else
+            {
+                status = "Article was not updated.";
+            }
+        }
+    }
+
+    async Task DeleteArticle()
+    {
+        var dbArticle = await Context.BlogPosts.FindAsync(Id);
+        if (dbArticle is not null )
+        {
+            Context.BlogPosts.Remove(dbArticle);
+            await Context.SaveChangesAsync();
+            NavigationManager.NavigateTo("/blog");
+            
+            
+        }
+    }
+
+}
